@@ -5,7 +5,9 @@ Run with `pytest`, or directly: `python tests/test_geneprep.py`.
 
 from geneprep.codons import translate, gc_content, cai
 from geneprep.optimize import optimize, OptParams
-from geneprep.qc import restriction_hits, direct_repeats, max_homopolymer
+from geneprep.qc import (restriction_hits, direct_repeats, max_homopolymer,
+                         count_anti_sd, count_stalling_pairs, five_prime_mfe,
+                         HAS_SEQFOLD)
 
 DESIGNS = {
     "V1":  "HGYVEEGTVEQLAQAIAAVRAAHPDAAVLQVGRVFIVVAPTAAAHDAALAALEAEAAALGVKIVTLSAALAAADPALKAIWDAWLAATAALLAALAAAVAAGDAAAAAALAAQLAPALLATLRAVAAVRAAA",
@@ -37,6 +39,22 @@ def test_restriction_site_exclusion():
         assert restriction_hits(dna, sites) == []
 
 
+def test_no_anti_sd_or_stalling_pairs():
+    for prot in DESIGNS.values():
+        dna = optimize(prot, params=OptParams(seed=1)).dna
+        assert count_anti_sd(dna) == 0
+        assert count_stalling_pairs(dna) == 0
+
+
+def test_five_prime_mfe_weak_when_available():
+    if not HAS_SEQFOLD:
+        return  # skip silently
+    for prot in DESIGNS.values():
+        dna = optimize(prot, params=OptParams(seed=1)).dna
+        mfe = five_prime_mfe(dna)
+        assert mfe is None or mfe > -12.0, f"5' ΔG too strong: {mfe}"
+
+
 def test_determinism():
     # Same seed -> identical output (best-of-N over overlapping seed ranges may
     # legitimately pick the same optimum for different seeds, so we only assert
@@ -49,7 +67,8 @@ def test_determinism():
 
 if __name__ == "__main__":
     for fn in [test_translation_roundtrip, test_metrics_match_genscript_envelope,
-               test_restriction_site_exclusion, test_determinism]:
+               test_restriction_site_exclusion, test_no_anti_sd_or_stalling_pairs,
+               test_five_prime_mfe_weak_when_available, test_determinism]:
         fn()
         print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

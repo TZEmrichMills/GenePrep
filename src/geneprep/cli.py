@@ -52,9 +52,18 @@ Examples:
                         "append, and FAIL any gene with no detectable stop.")
     p.add_argument("--candidates", type=int, default=40,
                    help="Number of weighted-random candidates to sample (default: 40)")
-    p.add_argument("--target-gc", type=float, default=0.52,
-                   help="GC fraction to tilt sampling toward (default: 0.52; "
-                        "AA composition may keep actual GC higher)")
+    p.add_argument("--gc-target", "--target-gc", type=float, default=0.52,
+                   dest="gc_target", metavar="F",
+                   help="GC fraction the sampler tilts toward (default: 0.52). "
+                        "AA composition may push actual GC higher. Raising this "
+                        "toward 0.55–0.58 can help expression of AT-biased "
+                        "proteins; alanine-rich designs are already GC-rich, so "
+                        "for those the default is usually right.")
+    p.add_argument("--no-mfe", action="store_true",
+                   help="Skip the 5' mRNA secondary-structure (ΔG) scoring. "
+                        "The MFE factor uses seqfold; disable this to shave "
+                        "~10-40 ms/gene at the cost of ignoring translation-"
+                        "initiation folding.")
     p.add_argument("--seed", type=int, help="Random seed for reproducible output")
     p.add_argument("--yes", "-y", action="store_true",
                    help="Skip the column-mapping confirmation prompt for Excel input")
@@ -132,7 +141,8 @@ def main(argv=None) -> None:
         e.flank_5 = e.flank_5 or default_5
         e.flank_3 = e.flank_3 or default_3
 
-    params_base = dict(n_candidates=args.candidates, target_gc=args.target_gc, seed=args.seed)
+    params_base = dict(n_candidates=args.candidates, target_gc=args.gc_target,
+                       use_mfe=not args.no_mfe, seed=args.seed)
 
     valid_aa = set("ACDEFGHIKLMNPQRSTVWY")
     out_seqs, qc_results, sheet_rows, errors = [], [], [], 0
@@ -169,8 +179,9 @@ def main(argv=None) -> None:
         })
 
         swaps = result.repeat_swaps + result.site_swaps
+        mfe_txt = f"  5'ΔG={qc.five_prime_mfe}" if qc.five_prime_mfe is not None else ""
         print(f"  GC={qc.gc_pct}% (floor {qc.gc_floor_pct}%)  CAI={qc.cai}  "
-              f"5'GC={qc.five_prime_gc}%  window≤{qc.window_gc_max}%  "
+              f"5'GC={qc.five_prime_gc}%{mfe_txt}  window≤{qc.window_gc_max}%  "
               f"longest-repeat={qc.longest_repeat}bp  [{qc.status}]")
         if swaps:
             print(f"  repair swaps: {result.site_swaps} site, {result.repeat_swaps} repeat/homopolymer")

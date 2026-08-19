@@ -23,6 +23,7 @@ from .codons import (
 from .qc import (
     direct_repeats, homopolymer_runs, restriction_hits,
     window_gc_extremes, GC_WINDOW_HIGH,
+    count_stalling_pairs, count_anti_sd, five_prime_mfe, MFE_WARN,
 )
 
 
@@ -35,6 +36,7 @@ class OptParams:
     repeat_break_len: int = 12       # break direct repeats >= this (bp)
     homopolymer_max: int = 6         # never allow runs >= this
     max_repeat_iters: int = 60
+    use_mfe: bool = True             # score 5' mRNA MFE (needs seqfold)
     seed: int | None = None
 
 
@@ -48,19 +50,27 @@ class OptResult:
 
 
 def _score(dna: str, sites: dict[str, str], p: OptParams) -> float:
-    """Lower is better. Hard factors dominate; GC/CAI are tie-breakers."""
+    """Lower is better. Hard factors dominate; GC/CAI/expression factors tune."""
     score = 0.0
-    # user-excluded restriction sites — must avoid
+    # Hard: user-excluded restriction sites and runaway homopolymers
     score += len(restriction_hits(dna, sites)) * 1000
-    # homopolymers reaching the hard limit
     score += len(homopolymer_runs(dna, p.homopolymer_max)) * 200
-    # long direct repeats, weighted by how long
+    # Long direct repeats, weighted by how long
     for a, b, length in direct_repeats(dna, p.repeat_break_len):
         score += 40 + (length - p.repeat_break_len) * 4
-    # local GC windows above the high cap
+    # Local GC windows above the high cap
     _lo, _hi, flagged = window_gc_extremes(dna, high=GC_WINDOW_HIGH)
     score += flagged * 8
-    # soft preferences: lower overall GC, higher CAI (tie-breakers)
+    # Anti-SD motifs anywhere in the ORF (internal ribosome pausing sites)
+    score += count_anti_sd(dna) * 30
+    # Tandem stalling-codon pairs (e.g. AGG-AGG, CTA-CTA) — strong penalty
+    score += count_stalling_pairs(dna) * 50
+    # 5' mRNA secondary structure: penalise more-negative-than-threshold ΔG
+    if p.use_mfe:
+        mfe = five_prime_mfe(dna)
+        if mfe is not None and mfe < MFE_WARN:
+            score += (MFE_WARN - mfe) * 8.0
+    # Soft: lower overall GC, higher CAI (tie-breakers)
     score += gc_content(dna) * 6.0
     score += (1.0 - cai(dna)) * 4.0
     return score

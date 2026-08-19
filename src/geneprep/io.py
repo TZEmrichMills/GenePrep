@@ -285,6 +285,7 @@ def write_optimised_xlsx(rows: list[dict], qc_results: list[QCResult],
         "Gene Name", "Length (bp)", "GC%", "GC floor%", "CAI",
         "GC window min/max%", "Windows >85%", "Longest repeat (bp)",
         "Repeats >=15bp", "Max homopolymer", "5' GC%",
+        "5' ΔG (kcal/mol)", "Anti-SD motifs", "Tandem stalling pairs",
         "Restriction sites", "Source of stop codon", "Status", "Notes",
     ]
     qc_ws.append(qc_headers)
@@ -296,7 +297,10 @@ def write_optimised_xlsx(rows: list[dict], qc_results: list[QCResult],
             r.name, r.length, r.gc_pct, r.gc_floor_pct, r.cai,
             f"{r.window_gc_min}-{r.window_gc_max}", r.windows_flagged,
             r.longest_repeat, r.repeats_flagged, r.max_homopolymer,
-            r.five_prime_gc, r.restriction_str, r.stop_source,
+            r.five_prime_gc,
+            r.five_prime_mfe if r.five_prime_mfe is not None else "n/a",
+            r.anti_sd_hits, r.stalling_pairs,
+            r.restriction_str, r.stop_source,
             r.status, r.notes_str,
         ])
         sc = qc_ws.cell(row=qc_ws.max_row, column=qc_headers.index("Status") + 1)

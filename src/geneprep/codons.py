@@ -34,10 +34,16 @@ ECOLI_CODON_FREQ: dict[str, dict[str, float]] = {
     "*": {"TAA": 2.0, "TAG": 0.2, "TGA": 1.0},
 }
 
-# Codons whose relative adaptiveness (freq / max-for-that-aa) is below this are
-# excluded from seeding to avoid translationally poor codons. Kept mild so we do
-# not over-constrain: excludes CTA, AGA, AGG (the classic E. coli rare codons).
-RARE_REL_ADAPT = 0.10
+# Codons whose relative adaptiveness (freq / max-for-that-aa) is below this
+# are excluded from seeding. Set to catch the classic E. coli problem codons:
+# AGG, AGA, CGA (Arg), CTA (Leu), ATA (Ile). Raised from 0.10 to 0.16 to
+# also catch ATA (rel 0.14), which the literature flags as a tandem-stalling
+# risk even though it is above the 0.10 cutoff.
+RARE_REL_ADAPT = 0.16
+
+# Codons that stall the ribosome noticeably when they occur in tandem (>=2 in
+# a row) or in clusters. Superset of the sequence-only "rare" list above.
+STALLING_CODONS = frozenset({"AGG", "AGA", "CGA", "CTA", "ATA", "CCC"})
 
 # --- Derived lookup tables ------------------------------------------------
 CODON_TO_AA: dict[str, str] = {}
@@ -103,13 +109,17 @@ def _weighted_choice(codons: list[str], weights: list[float],
 
 def seed_translation(protein: str, target_gc: float = 0.55,
                      ramp_codons: int = 15, ramp_gc: float = 0.45,
-                     seed: Optional[int] = None) -> str:
+                     seed: Optional[int] = None,
+                     nterm_bias: bool = True) -> str:
     """Produce an initial DNA sequence by GC-aware weighted sampling.
 
     Codons are drawn proportional to E. coli frequency, tilted toward AT-rich
     or GC-rich synonyms to steer the running GC toward `target_gc`. The first
     `ramp_codons` are pulled toward the lower `ramp_gc` to build a low-GC
     translation-initiation ramp (mirrors what GenScript does at the 5' end).
+    If `nterm_bias` is on, position 0 (the codon immediately after the start
+    ATG, when the 5' flank supplies the ATG) is nudged toward A/T-starting
+    codons — E. coli expresses these better at position 2 (Verma et al. 2019).
     """
     rng = random.Random(seed)
     out: list[str] = []
@@ -133,7 +143,12 @@ def seed_translation(protein: str, target_gc: float = 0.55,
             base = ECOLI_CODON_FREQ[aa][c]
             # tilt: codons on the needed side of 0.5 GC get boosted
             tilt = math.exp(4.0 * pull * (codon_gc(c) - 0.5))
-            weights.append(base * tilt)
+            w = base * tilt
+            # N-terminal codon-2 preference: A/T-starting codons get a boost
+            # at position 0 (the codon right after the start ATG).
+            if nterm_bias and i == 0 and c[0] in "AT":
+                w *= 2.5
+            weights.append(w)
         choice = _weighted_choice(codons, weights, rng)
         out.append(choice)
         running_gc_sum += codon_gc(choice) * 3

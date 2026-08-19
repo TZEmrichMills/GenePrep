@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geneprep"
-version = "0.1.0"
+version = "0.2.0"
 description = "Codon-optimized gene sequence preparation for GenScript ordering"
 requires-python = ">=3.9"
 dependencies = [
     "biopython>=1.80",
     "openpyxl>=3.1.0",
+    "seqfold>=0.7.17",
 ]
 
 [project.scripts]

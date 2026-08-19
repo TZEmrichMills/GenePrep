@@ -20,6 +20,8 @@ geneprep designs.xlsx --copy-flanks-from 1            # reuse gene 1's flanks
 geneprep designs.fasta --exclude-sites BsaI=GGTCTC,EcoRI=GAATTC
 geneprep designs.fasta --seed 1 --candidates 100      # reproducible; deeper search
 geneprep designs.xlsx --yes                           # skip column-mapping prompt
+geneprep designs.fasta --gc-target 0.55               # tilt AT-biased proteins up
+geneprep designs.fasta --no-mfe                       # skip seqfold 5' ΔG scoring
 ```
 
 `geneprep --help` lists everything.
@@ -34,7 +36,17 @@ geneprep designs.xlsx --yes                           # skip column-mapping prom
 
 Weighted-random codon sampling (E. coli K-12 usage) tilted toward lower GC, drawn many times and scored — the best candidate is kept, then a targeted sweep clears excluded restriction sites, long repeats, and homopolymers. Preserving codon diversity is what breaks up repeats in alanine-rich sequences.
 
-Factors considered: overall + local (50 bp window) GC, codon adaptation (CAI), direct and reverse-complement repeats, homopolymers, a low-GC 5′ translation ramp, and user-excluded restriction sites.
+Factors considered:
+
+- Overall and local (50 bp window) GC content.
+- Codon adaptation (CAI) against E. coli K-12; classic problem codons (AGG, AGA, CGA, CTA, ATA) are excluded from the pool.
+- Direct and reverse-complement repeats; homopolymers.
+- 5′ translation-initiation region: low-GC ramp, N-terminal codon-2 preference (A/T-starting codons at position 2 for better expression), and — when `seqfold` is available — the minimum free energy (ΔG) of the first 40 nt (Kudla et al. showed this factor alone can span >250× in expression).
+- Anti-Shine-Dalgarno motifs in the ORF (`AGGAGG` and near-variants that create unwanted internal ribosome binding).
+- Tandem stalling-codon pairs (rare-codon pairs cause ribosome pauses beyond what individual rare codons do).
+- User-excluded restriction sites.
+
+The 5′ ΔG factor adds a hard dependency on `seqfold` (pure Python, pip-installed automatically). Disable it with `--no-mfe` to shave ~10–40 ms/gene.
 
 Because every alanine codon is ≥67% GC, high GC is intrinsic to these proteins — GenePrep minimises and reports GC against the protein's theoretical floor rather than failing it.
 

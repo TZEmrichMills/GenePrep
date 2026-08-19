@@ -10,7 +10,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .codons import gc_content, cai as _cai
+from .codons import gc_content, cai as _cai, STALLING_CODONS, CODON_TO_AA
+
+try:
+    from seqfold import dg as _seqfold_dg
+    HAS_SEQFOLD = True
+except Exception:  # pragma: no cover
+    HAS_SEQFOLD = False
 
 COMPLEMENT = str.maketrans("ATCG", "TAGC")
 
@@ -21,6 +27,15 @@ GC_WINDOW_LOW = 0.30      # local windows below this are flagged
 HOMOPOLYMER_FLAG = 6      # runs >= this are a problem (GenScript tolerated 5)
 REPEAT_FLAG = 15          # direct repeats >= this (bp) are flagged (GenScript max ~12)
 RAMP_CODONS = 15          # length of the 5' translation-initiation ramp
+MFE_WINDOW = 40           # nt of 5' region used for MFE calculation
+MFE_WARN = -10.0          # kcal/mol; more negative than this is flagged (Kudla et al.)
+
+# Anti-Shine-Dalgarno motifs the ribosome sees as internal binding sites.
+# Perfect anti-SD is AGGAGG (complement of the 16S rRNA 3' tail CCUCCU).
+# The variants below are the strongest matches; we penalise all of them.
+ANTI_SD_MOTIFS: tuple[str, ...] = (
+    "AGGAGG", "AAGGAG", "AGGAGA", "AGAGGA", "GGAGGA", "AAGGAGG", "AGGAGGA",
+)
 
 
 def revcomp(seq: str) -> str:
@@ -43,6 +58,9 @@ class QCResult:
     homopolymers_flagged: int = 0
     restriction_sites: list[tuple[str, int]] = field(default_factory=list)
     five_prime_gc: float = 0.0
+    five_prime_mfe: float | None = None
+    stalling_pairs: int = 0
+    anti_sd_hits: int = 0
     stop_source: str = ""
     status: str = "PASS"
     notes: list[str] = field(default_factory=list)
@@ -116,6 +134,45 @@ def restriction_hits(seq: str, sites: dict[str, str]) -> list[tuple[str, int]]:
     return hits
 
 
+def count_stalling_pairs(dna: str) -> int:
+    """Count adjacent codon pairs where both codons are known stallers."""
+    n = 0
+    prev_bad = False
+    for i in range(0, len(dna) - 2, 3):
+        c = dna[i:i + 3]
+        bad = c in STALLING_CODONS
+        if bad and prev_bad:
+            n += 1
+        prev_bad = bad
+    return n
+
+
+def count_anti_sd(dna: str) -> int:
+    """Count anti-Shine-Dalgarno-like motifs anywhere in the sequence."""
+    dna = dna.upper()
+    reported: set[int] = set()
+    for motif in ANTI_SD_MOTIFS:
+        start = 0
+        while (pos := dna.find(motif, start)) != -1:
+            if pos not in reported:
+                reported.add(pos)
+            start = pos + 1
+    return len(reported)
+
+
+def five_prime_mfe(dna: str, window: int = MFE_WINDOW) -> float | None:
+    """Minimum free energy (kcal/mol) of the first `window` nt using seqfold.
+    Returns None if seqfold isn't installed. More positive = weaker structure
+    = easier translation initiation."""
+    if not HAS_SEQFOLD or len(dna) < 10:
+        return None
+    try:
+        val = _seqfold_dg(dna[:window].replace("U", "T"))
+        return float(val) if val is not None else None
+    except Exception:
+        return None
+
+
 def window_gc_extremes(seq: str, window: int = GC_WINDOW,
                        high: float = GC_WINDOW_HIGH,
                        low: float = GC_WINDOW_LOW) -> tuple[float, float, int]:
@@ -155,6 +212,11 @@ def assess(name: str, dna: str, gc_floor: float,
     r.homopolymers_flagged = len(homopolymer_runs(dna, HOMOPOLYMER_FLAG))
     r.restriction_sites = restriction_hits(dna, restriction_sites)
     r.five_prime_gc = round(gc_content(dna[:RAMP_CODONS * 3]) * 100, 1)
+    r.five_prime_mfe = five_prime_mfe(dna)
+    if r.five_prime_mfe is not None:
+        r.five_prime_mfe = round(r.five_prime_mfe, 2)
+    r.stalling_pairs = count_stalling_pairs(dna)
+    r.anti_sd_hits = count_anti_sd(dna)
 
     # --- Status + notes ---------------------------------------------------
     if r.restriction_sites:
@@ -171,6 +233,14 @@ def assess(name: str, dna: str, gc_floor: float,
         if r.status == "PASS":
             r.status = "REVIEW"
         r.notes.append(f"local GC window peaks at {r.window_gc_max}%")
+    if r.five_prime_mfe is not None and r.five_prime_mfe < MFE_WARN:
+        if r.status == "PASS":
+            r.status = "REVIEW"
+        r.notes.append(f"strong 5' RNA structure (ΔG {r.five_prime_mfe} kcal/mol)")
+    if r.stalling_pairs:
+        r.notes.append(f"{r.stalling_pairs} tandem stalling-codon pair(s)")
+    if r.anti_sd_hits:
+        r.notes.append(f"{r.anti_sd_hits} anti-SD motif(s) in ORF")
     # GC is reported honestly relative to the intrinsic floor, never failed.
     if r.gc_pct - r.gc_floor_pct <= 3.0 and r.gc_pct > 60:
         r.notes.append(f"GC near intrinsic floor ({r.gc_floor_pct}%); residual GC is protein-inherent")
