@@ -32,13 +32,11 @@ geneprep designs.xlsx --yes                           # skip column-mapping prom
 
 ## How it works
 
-Weighted-random codon sampling (E. coli K-12 usage) tilted toward lower GC, drawn many times and scored — the best candidate is kept, then a targeted sweep clears excluded restriction sites, long repeats, and homopolymers. Preserving codon **diversity** is what breaks up repeats in alanine-rich sequences (a "pick the best codon" approach destroys it).
+Weighted-random codon sampling (E. coli K-12 usage) tilted toward lower GC, drawn many times and scored — the best candidate is kept, then a targeted sweep clears excluded restriction sites, long repeats, and homopolymers. Preserving codon diversity is what breaks up repeats in alanine-rich sequences.
 
 Factors considered: overall + local (50 bp window) GC, codon adaptation (CAI), direct and reverse-complement repeats, homopolymers, a low-GC 5′ translation ramp, and user-excluded restriction sites.
 
-## Calibration
-
-Thresholds were reverse-engineered from real **GenScript-accepted** optimisations of alanine-rich de novo designs. GenePrep matches or beats them on every axis (GC 58–65% vs 63–68%, CAI 0.69–0.74, no repeats ≥12 bp), at ~30 ms per gene. Because every alanine codon is ≥67% GC, high GC is intrinsic to these proteins — GenePrep minimises and reports GC against the protein's theoretical floor rather than failing it.
+Because every alanine codon is ≥67% GC, high GC is intrinsic to these proteins — GenePrep minimises and reports GC against the protein's theoretical floor rather than failing it.
 
 ## Status labels
 
