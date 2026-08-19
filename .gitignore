@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# GenePrep test outputs (keep only the input fixtures)
+tests/*_optimised.fasta
+tests/*_optimised.xlsx
+tests/*_qc.xlsx
+tests/*_optimized.fasta
+tests/*_sequences.xlsx
+tests/~$*
+
+# Excel lock files
+~$*.xlsx

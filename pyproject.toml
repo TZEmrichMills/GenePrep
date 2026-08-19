@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geneprep"
+version = "0.1.0"
+description = "Codon-optimized gene sequence preparation for GenScript ordering"
+requires-python = ">=3.9"
+dependencies = [
+    "biopython>=1.80",
+    "openpyxl>=3.1.0",
+]
+
+[project.scripts]
+geneprep = "geneprep.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
