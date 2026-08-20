@@ -1,6 +1,6 @@
 # GenePrep
 
-A little tool that turns protein sequences into codon-optimised, order-ready gene sequences for **E. coli expression** and **GenScript synthesis**. Runs locally, keeps your designs private, and hands back an Excel file where every row has a full construct you can paste straight into the order form.
+A quick tool that turns protein sequences into codon-optimised, order-ready gene sequences for **E. coli expression** and **GenScript synthesis**. Runs locally, keeps your designs private, and hands back an Excel file where every row has a full construct you can paste straight into the order form.
 
 Built for GC-rich de novo designs (alanine-rich helical bundles), but works fine for any protein.
 
@@ -61,7 +61,7 @@ geneprep designs.fasta --no-mfe                       # skip the seqfold 5′ fo
 
 ## How it works
 
-GenePrep samples many codon-choice candidates using weighted-random selection (tilted toward E. coli's preferred codons *and* toward lower GC), scores them, and keeps the best. A short repair pass then clears any excluded restriction sites, long repeats, or homopolymers. The key insight: preserving **codon diversity** is what breaks up repeats in alanine-rich sequences — a naive "always pick the best codon" approach actively creates repeats.
+GenePrep samples many codon-choice candidates using weighted-random selection (tilted toward E. coli's preferred codons *and* toward lower GC), scores them, and keeps the best. A short repair pass then clears any excluded restriction sites, long repeats, or homopolymers. Preserving **codon diversity** helps breaks up repeats in alanine-rich sequences.
 
 What it scores against:
 
