@@ -21,6 +21,7 @@ geneprep designs.fasta
 ```
 
 Excel files should have name, sequence and (optionally) 5'flank and 3'flank columns.
+
 That's it. Two files come out next to the input:
 
 - **`designs_optimised.fasta`** — the optimised DNA sequences.
