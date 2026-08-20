@@ -114,6 +114,15 @@ def parse_sites(spec: str) -> dict[str, str]:
 
 
 def main(argv=None) -> None:
+    # Ensure Unicode (ΔG, ≤, etc.) prints cleanly on Windows terminals whose
+    # legacy default encoding is cp1252. Safe no-op on macOS/Linux.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
     args = parse_args(argv)
     if not args.input.exists():
         raise SystemExit(f"Error: input not found: {args.input}")

@@ -5,8 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "geneprep"
 version = "0.2.0"
-description = "Codon-optimized gene sequence preparation for GenScript ordering"
+description = "Codon-optimised gene sequence preparation for E. coli expression and GenScript ordering"
+readme = "README.md"
 requires-python = ">=3.9"
+authors = [{name = "Tom Emrich-Mills"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 dependencies = [
     "biopython>=1.80",
     "openpyxl>=3.1.0",

@@ -230,7 +230,7 @@ def read_input(path: Path, auto_yes: bool = False) -> list[GeneEntry]:
 # --- Writers ------------------------------------------------------------
 
 def write_fasta(entries: list[tuple[str, str]], path: Path) -> None:
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         for name, seq in entries:
             f.write(f">{name}\n")
             for i in range(0, len(seq), 80):
