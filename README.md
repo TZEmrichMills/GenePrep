@@ -1,6 +1,6 @@
 # GenePrep
 
-A quick tool that turns protein sequences into codon-optimised, order-ready gene sequences for **E. coli expression** and **GenScript synthesis**. Runs locally, keeps your designs private, and hands back an Excel file where every row has a full construct you can paste straight into the order form.
+A quick tool that turns protein or DNA sequences into codon-optimised, order-ready gene sequences for **E. coli expression**. Runs locally, keeps your designs private, and hands back an Excel file where every row has a full construct you can paste straight into an order form.
 
 Built for GC-rich de novo designs (alanine-rich helical bundles), but works fine for any protein.
 
